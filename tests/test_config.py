@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import Mock
 
-from my_project_name.config import Config
-from my_project_name.errors import ConfigError
+from star_bot.config import Config
+from star_bot.errors import ConfigError
 
 
 class ConfigTestCase(unittest.TestCase):
