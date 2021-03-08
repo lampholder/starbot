@@ -105,6 +105,8 @@ class Config:
 
         self.command_prefix = self._get_cfg(["command_prefix"], default="!c") + " "
 
+        self.star_room_id = self._get_cfg(["starbot", "room_id"], required=True)
+
     def _get_cfg(
         self,
         path: List[str],

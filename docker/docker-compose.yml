@@ -2,7 +2,7 @@ version: '3.1' # specify docker-compose version
 
 volumes:
   # Set up with `docker volume create ...`. See docker/README.md for more info.
-  data_volume:
+  star_bot_data:
     external: true
   pg_data_volume:
 
@@ -12,13 +12,13 @@ services:
     image: somebody/star-bot
     restart: always
     volumes:
-      - data_volume:/data
+      - star_bot_data:/data
     # Used for allowing connections to homeservers hosted on the host machine
     # (while docker host mode is still broken on Linux).
     #
     # Defaults to 127.0.0.1 and is set in docker/.env
     extra_hosts:
-      - "localhost:${HOST_IP_ADDRESS}"
+      - "localhost:127.0.0.1"
 
   # Builds and runs an optimized container from local code
   local-checkout:
@@ -29,16 +29,16 @@ services:
       # args:
       #  PYTHON_VERSION: 3.8
     volumes:
-      - data_volume:/data
+      - star_bot_data:/data
     # Used for allowing connections to homeservers hosted on the host machine
     # (while docker host networking mode is still broken on Linux).
     #
     # Defaults to 127.0.0.1 and is set in docker/.env
     extra_hosts:
-      - "localhost:${HOST_IP_ADDRESS}"
+      - "localhost:127.0.0.1"
 
   # Builds and runs a development container from local code
-  local-checkout-dev:
+  local-checkout-star-bot-dev:
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
@@ -46,19 +46,19 @@ services:
       # args:
       #  PYTHON_VERSION: 3.8
     volumes:
-      - data_volume:/data
+      - star_bot_data:/data
     # Used for allowing connections to homeservers hosted on the host machine
     # (while docker host networking mode is still broken on Linux).
     #
     # Defaults to 127.0.0.1 and is set in docker/.env
     extra_hosts:
-      - "localhost:${HOST_IP_ADDRESS}"
+      - "localhost:127.0.0.1"
 
   # Starts up a postgres database
   postgres:
     image: postgres
     restart: always
     volumes:
-      - pg_data_volume:/var/lib/postgresql/data
+      - star_bot_data:/var/lib/postgresql/data
     environment:
         POSTGRES_PASSWORD: somefancypassword

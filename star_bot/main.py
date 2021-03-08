@@ -13,6 +13,8 @@ from nio import (
     LoginError,
     MegolmEvent,
     RoomMessageText,
+    RedactionEvent,
+    JoinError,
     UnknownEvent,
 )
 
@@ -62,10 +64,11 @@ async def main():
 
     # Set up event callbacks
     callbacks = Callbacks(client, store, config)
-    client.add_event_callback(callbacks.message, (RoomMessageText,))
-    client.add_event_callback(callbacks.invite, (InviteMemberEvent,))
-    client.add_event_callback(callbacks.decryption_failure, (MegolmEvent,))
+    # client.add_event_callback(callbacks.message, (RoomMessageText,))
+    # client.add_event_callback(callbacks.invite, (InviteMemberEvent,))
+    # client.add_event_callback(callbacks.decryption_failure, (MegolmEvent,))
     client.add_event_callback(callbacks.unknown, (UnknownEvent,))
+    # client.add_event_callback(callbacks.redaction, (RedactionEvent,))
 
     # Keep trying to reconnect on failure (with some time in-between)
     while True:
@@ -103,6 +106,26 @@ async def main():
                 # Login succeeded!
 
             logger.info(f"Logged in as {config.user_id}")
+
+            logger.info("Joining star room")
+            if config.star_room_id not in client.rooms:
+                for attempt in range(3):
+                    logger.info(f"attempt {attempt}")
+                    result = await client.join(config.star_room_id)
+                    if type(result) == JoinError:
+                        logger.error(
+                            f"Error joining room {room.room_id} (attempt %d): %s",
+                            attempt,
+                            result.message,
+                        )
+                    else:
+                        break
+                logger.info("Waiting to sync")
+                await client.sync(full_state=True)
+                logger.info("Synced")
+            else:
+                logger.info("We're already joined")
+
             await client.sync_forever(timeout=30000, full_state=True)
 
         except (ClientConnectionError, ServerDisconnectedError):
