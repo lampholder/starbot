@@ -37,77 +37,6 @@ class Callbacks:
         self.config = config
         self.command_prefix = config.command_prefix
 
-    #async def message(self, room: MatrixRoom, event: RoomMessageText) -> None:
-    #    """Callback for when a message event is received
-
-    #    Args:
-    #        room: The room the event came from.
-
-    #        event: The event defining the message.
-    #    """
-    #    # Extract the message text
-    #    msg = event.body
-
-    #    # Ignore messages from ourselves
-    #    if event.sender == self.client.user:
-    #        return
-
-    #    logger.debug(
-    #        f"Bot message received for room {room.display_name} | "
-    #        f"{room.user_name(event.sender)}: {msg}"
-    #    )
-
-    #    # Process as message if in a public room without command prefix
-    #    has_command_prefix = msg.startswith(self.command_prefix)
-
-    #    # room.is_group is often a DM, but not always.
-    #    # room.is_group does not allow room aliases
-    #    # room.member_count > 2 ... we assume a public room
-    #    # room.member_count <= 2 ... we assume a DM
-    #    if not has_command_prefix and room.member_count > 2:
-    #        # General message listener
-    #        message = Message(self.client, self.store, self.config, msg, room, event)
-    #        await message.process()
-    #        return
-
-    #    # Otherwise if this is in a 1-1 with the bot or features a command prefix,
-    #    # treat it as a command
-    #    if has_command_prefix:
-    #        # Remove the command prefix
-    #        msg = msg[len(self.command_prefix) :]
-
-    #    command = Command(self.client, self.store, self.config, msg, room, event)
-    #    await command.process()
-
-    #async def invite(self, room: MatrixRoom, event: InviteMemberEvent) -> None:
-    #    """Callback for when an invite is received. Join the room specified in the invite.
-
-    #    Args:
-    #        room: The room that we are invited to.
-
-    #        event: The invite event.
-    #    """
-    #    logger.debug(f"Got invite to {room.room_id} from {event.sender}.")
-
-    #    # Attempt to join 3 times before giving up
-    #    for attempt in range(3):
-    #        result = await self.client.join(room.room_id)
-    #        if type(result) == JoinError:
-    #            logger.error(
-    #                f"Error joining room {room.room_id} (attempt %d): %s",
-    #                attempt,
-    #                result.message,
-    #            )
-    #        else:
-    #            break
-    #    else:
-    #        logger.error("Unable to join room: %s", room.room_id)
-
-    #    # Successfully joined room
-    #    logger.info(f"Joined {room.room_id}")
-
-
-
     async def _reaction(
         self, room: MatrixRoom, event: UnknownEvent, reacted_to_id: str
     ) -> None:
@@ -120,6 +49,11 @@ class Callbacks:
 
             reacted_to_id: The event ID that the reaction points to.
         """
+
+        if type(event) is MegolmEvent:
+            logger.debug("The event wasn't decrypted for some raisin")
+            return
+
         logger.debug(f"Got reaction to {room.room_id} from {event.sender}.")
 
         # Get the original event that was reacted to
@@ -146,18 +80,21 @@ class Callbacks:
         if reaction_content != '⭐️':
             return
 
-
-        ## Send a message acknowledging the reaction
         pill = make_pill(reacted_to_event.sender)
         while True:
             logger.info("Are we in the room?")
             logger.info(self.config.star_room_id in self.client.rooms)
+            if self.config.star_room_id not in self.client.rooms:
+                #logger.info("We weren't in the room, bailing")
+                #break
+                logger.info("fudgin' it")
+                self.client.rooms[self.config.star_room_id] = "what could go wrong?"
             logger.info(self.client.rooms[self.config.star_room_id])
             try:
                 result = await send_text_to_room(
                     self.client,
                     self.config.star_room_id,
-                    f"{pill}: {reacted_to_event.body} [->](https://matrix.to/#/{room.room_id}/{reacted_to_event.event_id}?via=lant.uk)",
+                    f"<a href=\"https://matrix.to/#/{room.room_id}\">{room.display_name}</a>—{pill}: {reacted_to_event.body} [->](https://matrix.to/#/{room.room_id}/{reacted_to_event.event_id}?via=lant.uk)",
                     notice=False
                 )
                 logger.info(result)
@@ -165,59 +102,6 @@ class Callbacks:
             except LocalProtocolError as e:
                 logger.error(e)
                 await self.client.sync()
-
-        #if type(result) is RoomSendResponse:
-        #    mark_with_star = await react_to_event(
-        #        self.client,
-        #        self.config.star_room_id,
-        #        result.event_id,
-        #        '⭐️'
-        #    )
-
-
-    async def decryption_failure(self, room: MatrixRoom, event: MegolmEvent) -> None:
-        """Callback for when an event fails to decrypt. Inform the user.
-
-        Args:
-            room: The room that the event that we were unable to decrypt is in.
-
-            event: The encrypted event that we were unable to decrypt.
-        """
-        logger.error(
-            f"Failed to decrypt event '{event.event_id}' in room '{room.room_id}'!"
-            f"\n\n"
-            f"Tip: try using a different device ID in your config file and restart."
-            f"\n\n"
-            f"If all else fails, delete your store directory and let the bot recreate "
-            f"it (your reminders will NOT be deleted, but the bot may respond to existing "
-            f"commands a second time)."
-        )
-
-        red_x_and_lock_emoji = "❌ 🔐"
-
-        # React to the undecryptable event with some emoji
-        await react_to_event(
-            self.client,
-            room.room_id,
-            event.event_id,
-            red_x_and_lock_emoji,
-        )
-
-   #  async def redaction(self, room: MatrixRoom, event: RedactionEvent) -> None:
-   #      if room.room_id == self.config.star_room_id:
-   #          logger.info("AN event was redacted")
-
-   #          get_redacted_event = await self.client.room_get_event(room.room_id, event.redacts)
-   #          redacted_event = get_redacted_event.event
-   #          logger.info("The type of the redacted event was %s" % redacted_event.type)
-   #          if redacted_event.type == "m.reaction":
-   #              relation_dict = redacted_event.get("content", {}).get("m.relates_to", {})
-
-   #              reacted_to = relation_dict.get("event_id")
-   #              logger.info("The event id reacted to is %s" % reacted_to)
-   #              logger.info("And the content is %s" % relation_dict.get("key"))
-   #              if reacted_to and relation_dict.get("rel_type") == "m.annotation" and relation_dict.get("key") == "⭐️":
-   #                  await self._unreaction(room, event, reacted_to)
 
 
     async def unknown(self, room: MatrixRoom, event: UnknownEvent) -> None:

@@ -18,6 +18,7 @@ from nio import (
     UnknownEvent,
 )
 
+from star_bot.chat_functions import send_text_to_room
 from star_bot.callbacks import Callbacks
 from star_bot.config import Config
 from star_bot.storage import Storage
@@ -64,11 +65,7 @@ async def main():
 
     # Set up event callbacks
     callbacks = Callbacks(client, store, config)
-    # client.add_event_callback(callbacks.message, (RoomMessageText,))
-    # client.add_event_callback(callbacks.invite, (InviteMemberEvent,))
-    # client.add_event_callback(callbacks.decryption_failure, (MegolmEvent,))
     client.add_event_callback(callbacks.unknown, (UnknownEvent,))
-    # client.add_event_callback(callbacks.redaction, (RedactionEvent,))
 
     # Keep trying to reconnect on failure (with some time in-between)
     while True:
@@ -107,6 +104,10 @@ async def main():
 
             logger.info(f"Logged in as {config.user_id}")
 
+            # Try and get the full state so we knoow what rooms we're in
+            # EDIT: This doesn't seem to help
+            # await client.sync(full_state=True)
+
             logger.info("Joining star room")
             if config.star_room_id not in client.rooms:
                 for attempt in range(3):
@@ -119,14 +120,19 @@ async def main():
                             result.message,
                         )
                     else:
-                        break
-                logger.info("Waiting to sync")
-                await client.sync(full_state=True)
-                logger.info("Synced")
+                        logger.info(result)
+                        logger.info("We're in the room (aside: we're not)")
             else:
                 logger.info("We're already joined")
 
-            await client.sync_forever(timeout=30000, full_state=True)
+            # await send_text_to_room(
+            #     client,
+            #     config.star_room_id,
+            #     'STARBOT ONLINE',
+            #     notice=True
+            # )
+
+            await client.sync_forever(timeout=9000000, full_state=True)
 
         except (ClientConnectionError, ServerDisconnectedError):
             logger.warning("Unable to connect to homeserver, retrying in 15s...")
