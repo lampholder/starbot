@@ -50,7 +50,7 @@ class Callbacks:
             reacted_to_id: The event ID that the reaction points to.
         """
 
-        if type(event) is MegolmEvent:
+        if isinstance(event, MegolmEvent):
             logger.debug("The event wasn't decrypted for some raisin")
             return
 
@@ -64,6 +64,9 @@ class Callbacks:
             )
             return
         reacted_to_event = event_response.event
+        if isinstance(reacted_to_event, MegolmEvent):
+            logger.debug("The reacted to event wasn't decrypted for some raisin")
+            return
 
         # Ignore other users' reactions
         if event.sender != self.client.user:
@@ -85,10 +88,8 @@ class Callbacks:
             logger.info("Are we in the room?")
             logger.info(self.config.star_room_id in self.client.rooms)
             if self.config.star_room_id not in self.client.rooms:
-                #logger.info("We weren't in the room, bailing")
-                #break
-                logger.info("fudgin' it")
-                self.client.rooms[self.config.star_room_id] = "what could go wrong?"
+                logger.info("We weren't in the room, bailing")
+                break
             logger.info(self.client.rooms[self.config.star_room_id])
             try:
                 result = await send_text_to_room(
